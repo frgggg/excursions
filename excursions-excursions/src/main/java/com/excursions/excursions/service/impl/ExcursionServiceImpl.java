@@ -27,6 +27,7 @@ import java.util.stream.StreamSupport;
 import static com.excursions.excursions.exception.message.ExcursionServiceExceptionMessages.EXCURSION_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION;
 import static com.excursions.excursions.exception.message.ExcursionServiceExceptionMessages.EXCURSION_SERVICE_EXCEPTION_SAVE_OR_UPDATE_EXIST_PLACE;
 import static com.excursions.excursions.log.message.ExcursionServiceLogMessages.*;
+import static com.excursions.excursions.service.impl.util.ServicesUtil.isListNotNullNotEmpty;
 
 @Slf4j
 @Service
@@ -77,7 +78,7 @@ public class ExcursionServiceImpl implements ExcursionService {
     @Override
     public void deleteEndedExcursions() {
         List<Excursion> endedExcursions = excursionRepository.findByStopBefore(
-                LocalDateTime.now().plusDays(Integer.parseInt(deleteEndedExcursionsAfterDay))
+                LocalDateTime.now().minusDays(Integer.parseInt(deleteEndedExcursionsAfterDay))
         );
 
         if(isListNotNullNotEmpty(endedExcursions)) {
@@ -91,23 +92,16 @@ public class ExcursionServiceImpl implements ExcursionService {
     @Transactional(isolation = Isolation.SERIALIZABLE)
     @Override
     public void deleteNotEndedExcursionsByNotExistPlaces() {
-        List<Long> allPlacesIds =
-                excursionRepository.getAllPlacesIds();
-        List<Long> notExistPlacesIds =
-                placeService.getNotExistPlacesIds(allPlacesIds);
-        List<Excursion> notEndedExcursionsWithNotExistPlaces =
-                excursionRepository.findByPlacesIdsInAndStartAfter(notExistPlacesIds, LocalDateTime.now());
-
-        if(
-                !isListNotNullNotEmpty(allPlacesIds) ||
-                !isListNotNullNotEmpty(notExistPlacesIds) ||
-                !isListNotNullNotEmpty(notEndedExcursionsWithNotExistPlaces)
-        )
+        List<Long> allPlacesIds = excursionRepository.getAllPlacesIds();
+        if(!isListNotNullNotEmpty(allPlacesIds))
+            return;
+        List<Long> notExistPlacesIds = placeService.getNotExistPlacesIds(allPlacesIds);
+        if(!isListNotNullNotEmpty(notExistPlacesIds))
+            return;
+        List<Excursion> notEndedExcursionsWithNotExistPlaces = excursionRepository.findByPlacesIdsInAndStartAfter(notExistPlacesIds, LocalDateTime.now());
+        if(!isListNotNullNotEmpty(notEndedExcursionsWithNotExistPlaces))
             return;
 
-
-        notExistPlacesIds = placeService.getNotExistPlacesIds(allPlacesIds);
-        notEndedExcursionsWithNotExistPlaces = excursionRepository.findByPlacesIdsInAndStartAfter(notExistPlacesIds, LocalDateTime.now());
         ticketService.setActiveTicketsAsDropByWrongExcursions(notEndedExcursionsWithNotExistPlaces);
         excursionRepository.deleteAll(notEndedExcursionsWithNotExistPlaces);
 
@@ -147,14 +141,6 @@ public class ExcursionServiceImpl implements ExcursionService {
     @Transactional
     private Excursion saveUtil(Excursion excursionForSave) {
         return excursionRepository.save(excursionForSave);
-    }
-
-    private static boolean isListNotNullNotEmpty(List list) {
-        if(list == null)
-            return false;
-        if(list.size() > 0)
-            return false;
-        return true;
     }
 
     public void setTicketService(TicketService ticketService) {

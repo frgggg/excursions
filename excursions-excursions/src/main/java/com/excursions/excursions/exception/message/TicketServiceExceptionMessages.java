@@ -8,4 +8,6 @@ public class TicketServiceExceptionMessages {
     public static final String TICKET_SERVICE_EXCEPTION_EXCURSION_STARTED = "current excursion started or time for back is end";
 
     public static final String TICKET_SERVICE_EXCEPTION_TICKET_IS_NOT_ACTIVE = "current ticket is not active";
+
+    public static final String TICKET_SERVICE_EXCEPTION_CANT_DROP_TICKETS_FOR_ENDED_EXCURSION = "can't delete tickets for ended excursions";
 }

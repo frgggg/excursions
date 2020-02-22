@@ -27,7 +27,10 @@ public class Ticket {
     public static final String TICKET_USER_ID_VALIDATION_MESSAGE = TICKET_USER_ID_FIELD_NAME + LONG_FIELD_NOTNULL;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @SequenceGenerator(name = "tickets_sequence_gen", sequenceName = "tickets_sequence",
+            initialValue = 1, allocationSize = 1)
+    @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="tickets_sequence_gen")
+    @Column(name = "id", nullable = false, updatable = false)
     private Long id;
 
     @Column(name = "excursion_id", nullable = false)

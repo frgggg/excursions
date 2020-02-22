@@ -49,7 +49,10 @@ public class Excursion {
     public static final String EXCURSION_PLACES_IDS_VALIDATION_MESSAGE = EXCURSION_PLACES_IDS_FIELD_NAME + " must be mot null, not empty and include exist places ids";
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @SequenceGenerator(name = "excursions_sequence_gen", sequenceName = "excursions_sequence",
+            initialValue = 1, allocationSize = 1)
+    @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="excursions_sequence_gen")
+    @Column(name = "id", nullable = false, updatable = false)
     private Long id;
 
     @Column(name = "name", length = EXCURSION_NAME_LEN_MAX, nullable = false)

@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
 import javax.validation.ConstraintViolationException;
 
 import java.time.LocalDateTime;
@@ -23,9 +22,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static com.excursions.excursions.exception.message.TicketServiceExceptionMessages.*;
 import static com.excursions.excursions.log.message.TicketServiceLogMessages.*;
+import static com.excursions.excursions.service.impl.util.ServicesUtil.isListNotNullNotEmpty;
 
 @Slf4j
 @Service
@@ -34,61 +35,46 @@ public class TicketServiceImpl implements TicketService {
     @Value("${ticket.drop-by-user-before-stop.day}")
     private String deleteByUserBeforeStartMinusDay;
 
-    private EntityManager entityManager;
     private TicketRepository ticketRepository;
     private ExcursionService excursionService;
     private UserService userService;
 
     @Autowired
-    protected TicketServiceImpl(TicketRepository ticketRepository, EntityManager entityManager, UserService userService) {
+    protected TicketServiceImpl(TicketRepository ticketRepository, UserService userService) {
         this.ticketRepository = ticketRepository;
-        this.entityManager = entityManager;
         this.userService = userService;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Override
     public Ticket create(Long userId, Long excursionId, Long expectedCoinsCost) {
-        Excursion excursion = excursionService.findById(excursionId);
+        Ticket savedTicket;
 
-        checkExcursionForStart(excursion);
-
-        if(!expectedCoinsCost.equals(excursion.getCoinsCost())) {
-            throw new ServiceException(TICKET_SERVICE_EXCEPTION_WRONG_COST);
+        try {
+            savedTicket = saveUtil(userId, excursionId, expectedCoinsCost);
+        } catch (ConstraintViolationException e) {
+            throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
+        } catch (Exception e) {
+            throw new ServiceException(e.getMessage());
         }
 
-        if(!excursion.getEnableNewTickets()) {
-            throw new ServiceException(TICKET_SERVICE_EXCEPTION_NEW_TICKET_NOT_ENABLE);
-        }
-
-        if(ticketRepository.countByExcursionIdAndState(excursionId, TicketState.ACTIVE) >= excursion.getPeopleCount()) {
-            throw new ServiceException(TICKET_SERVICE_EXCEPTION_MAX_PEOPLE_COUNT);
-        }
-
-        Ticket ticketForSave = new Ticket(excursionId, expectedCoinsCost, userId);
-        Ticket savedTicket = saveUtil(ticketForSave);
-        userService.coinsDownByExcursion(userId, expectedCoinsCost);
         log.info(TICKET_SERVICE_LOG_NEW_TICKET, savedTicket);
         return savedTicket;
     }
 
     @Override
     public List<Ticket> findAll() {
-        List<Ticket> tickets = new ArrayList<>();
-        ticketRepository.findAll().forEach(tickets::add);
         log.info(TICKET_SERVICE_LOG_FIND_ALL);
-        return tickets;
+        return StreamSupport.stream(ticketRepository.findAll().spliterator(), false)
+                .collect(Collectors.toList());
     }
 
     @Override
     public Ticket findById(Long id) {
         Optional<Ticket> optionalTicket = ticketRepository.findById(id);
-        if(!optionalTicket.isPresent()) {
-            throw new ServiceException(String.format(TICKET_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION, id));
-        }
-        Ticket findByIdTicket = optionalTicket.get();
-        log.info(TICKET_SERVICE_LOG_FIND_EXCURSION, findByIdTicket);
-        return findByIdTicket;
+        optionalTicket.orElseThrow(() -> new ServiceException(String.format(TICKET_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION, id)));
+        log.info(TICKET_SERVICE_LOG_FIND_EXCURSION, optionalTicket.get());
+        return optionalTicket.get();
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
@@ -105,8 +91,9 @@ public class TicketServiceImpl implements TicketService {
             throw new ServiceException( TICKET_SERVICE_EXCEPTION_EXCURSION_STARTED);
         }
 
-        ticket.setState(TicketState.DROP_BY_USER);
-        saveUtil(ticket);
+        if(ticketRepository.updateTicketStatus(id, TicketState.DROP_BY_USER, TicketState.ACTIVE) == 0) {
+            throw new ServiceException(TICKET_SERVICE_EXCEPTION_TICKET_IS_NOT_ACTIVE);
+        }
         log.info(TICKET_SERVICE_LOG_TICKET_DROP_BY_USER, ticket.getId());
     }
 
@@ -119,12 +106,11 @@ public class TicketServiceImpl implements TicketService {
         }
         checkExcursionForStart(excursionService.findById(ticket.getExcursionId()));
 
-        ticket.setState(TicketState.DROP_BY_NOT_ENDED_EXCURSION);
-        saveUtil(ticket);
+        ticketRepository.updateTicketStatus(id, TicketState.DROP_BY_NOT_ENDED_EXCURSION, TicketState.ACTIVE);
+
         log.info(TICKET_SERVICE_LOG_TICKET_DROP_BY_NOT_ENDED_EXCURSION, ticket.getId());
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Override
     public void deleteNotActiveTickets() {
         deleteNotActiveTicketsNoBackCoins();
@@ -137,18 +123,18 @@ public class TicketServiceImpl implements TicketService {
     public void setActiveTicketsAsDropByEndedExcursions(List<Excursion> endedExcursions) {
         List<Long> endedExcursionIds = null;
 
-        if(endedExcursions != null) {
-            if (endedExcursions.size() > 0) {
-                endedExcursionIds = endedExcursions.stream().map(Excursion::getId).collect(Collectors.toList());
-                List<Ticket> tickets = ticketRepository.findByExcursionIdInAndState(endedExcursionIds, TicketState.ACTIVE);
-                if(tickets != null) {
-                    if(tickets.size() > 0) {
-                        for(int i = 0; i < tickets.size(); i++) {
-                            Ticket ticket = tickets.get(i);
-                            ticket.setState(TicketState.DROP_BY_ENDED_EXCURSION);
-                            tickets.set(i, ticket);
-                        }
-                    }
+        if(isListNotNullNotEmpty(endedExcursions)) {
+            endedExcursionIds = endedExcursions.stream().map(Excursion::getId).collect(Collectors.toList());
+            List<Ticket> tickets = ticketRepository.findByExcursionIdInAndState(endedExcursionIds, TicketState.ACTIVE);
+            if(isListNotNullNotEmpty(tickets)) {
+                List<Long> ticketsIds = tickets.stream().map(Ticket::getId).collect(Collectors.toList());
+                int updateResult = ticketRepository.updateTicketsStatus(
+                        ticketsIds,
+                        TicketState.DROP_BY_ENDED_EXCURSION,
+                        TicketState.ACTIVE
+                );
+                if(updateResult == 0) {
+                    throw new ServiceException(TICKET_SERVICE_EXCEPTION_CANT_DROP_TICKETS_FOR_ENDED_EXCURSION);
                 }
             }
         }
@@ -156,23 +142,20 @@ public class TicketServiceImpl implements TicketService {
         log.info(TICKET_SERVICE_LOG_TICKET_DROP_BY_ENDED_EXCURSIONS, endedExcursionIds);
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Override
     public void setActiveTicketsAsDropByWrongExcursions(List<Excursion> wrongExcursions) {
         List<Long> wrongExcursionsIds = null;
-        if(wrongExcursions != null) {
-            if(wrongExcursions.size() > 0) {
-                wrongExcursionsIds = wrongExcursions.stream().map(Excursion::getId).collect(Collectors.toList());
-                List<Ticket> tickets = ticketRepository.findByExcursionIdInAndState(wrongExcursionsIds, TicketState.ACTIVE);
-                if(tickets != null) {
-                    if(tickets.size() > 0) {
-                        for(int i = 0; i < tickets.size(); i++) {
-                            Ticket ticket = tickets.get(i);
-                            ticket.setState(TicketState.DROP_BY_WRONG_EXCURSION);
-                            tickets.set(i, ticket);
-                        }
-                    }
-                }
+        if(isListNotNullNotEmpty(wrongExcursions)) {
+            wrongExcursionsIds = wrongExcursions.stream().map(Excursion::getId).collect(Collectors.toList());
+            List<Ticket> tickets = ticketRepository.findByExcursionIdInAndState(wrongExcursionsIds, TicketState.ACTIVE);
+            if(isListNotNullNotEmpty(tickets)) {
+                List<Long> ticketsIds = tickets.stream().map(Ticket::getId).collect(Collectors.toList());
+                ticketRepository.updateTicketsStatus(
+                        ticketsIds,
+                        TicketState.DROP_BY_WRONG_EXCURSION,
+                        TicketState.ACTIVE
+                );
             }
         }
 
@@ -192,20 +175,21 @@ public class TicketServiceImpl implements TicketService {
         ticketStatesNoBackCoins.add(TicketState.DROP_BY_ENDED_EXCURSION);
 
         List<Ticket> tickets = ticketRepository.findByStateNotIn(ticketStatesNoBackCoins);
-        List<Ticket> ticketsForDelete = new ArrayList<>();
 
         for(Ticket t: tickets) {
             try {
-                userService.coinsUpByExcursion(t.getUserId(), t.getCoinsCost());
+                deleteTicketWithCoinsBack(t);
+                log.error(TICKET_SERVICE_LOG_BACK_COINS, t.getCoinsCost(), t.getUserId());
+            } catch (ServiceException e) {
+                log.error(TICKET_SERVICE_LOG_ERROR_BACK_COINS, t.getCoinsCost(), t.getUserId());
             }
-            catch (ServiceException e)
-            {
-                continue;
-            }
-            ticketsForDelete.add(t);
         }
+    }
 
-        ticketRepository.deleteAll(ticketsForDelete);
+    @Transactional
+    private void deleteTicketWithCoinsBack(Ticket t) {
+        ticketRepository.delete(t);
+        userService.coinsUpByExcursion(t.getUserId(), t.getCoinsCost());
     }
 
     private void deleteNotActiveTicketsNoBackCoins() {
@@ -218,15 +202,26 @@ public class TicketServiceImpl implements TicketService {
         }
     }
 
-    private Ticket saveUtil(Ticket ticketForSave) {
-        Ticket savedTicket;
-        try {
-            savedTicket = ticketRepository.save(ticketForSave);
-            entityManager.flush();
-        } catch (ConstraintViolationException e) {
-            throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
+    public Ticket saveUtil(Long userId, Long excursionId, Long expectedCoinsCost) {
+        Excursion excursion = excursionService.findById(excursionId);
+
+        checkExcursionForStart(excursion);
+
+        if(!expectedCoinsCost.equals(excursion.getCoinsCost())) {
+            throw new ServiceException(TICKET_SERVICE_EXCEPTION_WRONG_COST);
         }
 
+        if(!excursion.getEnableNewTickets()) {
+            throw new ServiceException(TICKET_SERVICE_EXCEPTION_NEW_TICKET_NOT_ENABLE);
+        }
+
+        if(ticketRepository.countByExcursionIdAndState(excursionId, TicketState.ACTIVE) >= excursion.getPeopleCount()) {
+            throw new ServiceException(TICKET_SERVICE_EXCEPTION_MAX_PEOPLE_COUNT);
+        }
+
+        Ticket ticketForSave = new Ticket(excursionId, expectedCoinsCost, userId);
+        Ticket savedTicket = ticketRepository.save(ticketForSave);
+        userService.coinsDownByExcursion(userId, expectedCoinsCost);
         return savedTicket;
     }
 
