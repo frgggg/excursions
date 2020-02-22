@@ -30,7 +30,6 @@ import static com.excursions.excursions.log.message.ExcursionServiceLogMessages.
 public class ExcursionServiceImpl implements ExcursionService {
 
     private ExcursionRepository excursionRepository;
-    private EntityManager entityManager;
     private PlaceService placeService;
     private TicketService ticketService = null;
 
@@ -38,39 +37,35 @@ public class ExcursionServiceImpl implements ExcursionService {
     private String deleteEndedExcursionsAfterDay;
 
     @Autowired
-    protected ExcursionServiceImpl(ExcursionRepository excursionRepository, EntityManager entityManager, PlaceService placeService) {
+    protected ExcursionServiceImpl(ExcursionRepository excursionRepository, PlaceService placeService) {
         this.excursionRepository = excursionRepository;
-        this.entityManager = entityManager;
         this.placeService = placeService;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
     @Override
     public Excursion save(String name, LocalDateTime start, LocalDateTime stop, Integer peopleCount, Long coinsCost, List<Long> placesIds) {
         Excursion excursionForSave = new Excursion(name, start, stop, peopleCount, coinsCost, placesIds);
-        Excursion savedExcursion = saveUtil(excursionForSave);
+        Excursion savedExcursion = saveOrUpdateUtil(excursionForSave);
         log.info(EXCURSION_SERVICE_LOG_NEW_EXCURSION, savedExcursion);
         return savedExcursion;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
     @Override
     public void setEnabledNewTicketsById(Long id) {
         Excursion excursionForUpdate = findById(id);
         if(!excursionForUpdate.getEnableNewTickets()) {
             excursionForUpdate.setEnableNewTickets(true);
-            saveUtil(excursionForUpdate);
+            saveOrUpdateUtil(excursionForUpdate);
         }
         log.info(EXCURSION_SERVICE_LOG_SET_ENABLE_NEW_TICKETS, excursionForUpdate);
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
     @Override
     public void setNotEnabledNewTicketsById(Long id) {
         Excursion excursionForUpdate = findById(id);
         if(excursionForUpdate.getEnableNewTickets()) {
             excursionForUpdate.setEnableNewTickets(false);
-            saveUtil(excursionForUpdate);
+            saveOrUpdateUtil(excursionForUpdate);
         }
         log.info(EXCURSION_SERVICE_LOG_SET_NOT_ENABLE_NEW_TICKETS, excursionForUpdate);
     }
@@ -133,6 +128,11 @@ public class ExcursionServiceImpl implements ExcursionService {
         return excursions;
     }
 
+    private Excursion saveOrUpdateUtil() {
+
+    }
+
+    @Transactional
     private Excursion saveUtil(Excursion excursionForSave) {
         Excursion savedExcursion;
         try {

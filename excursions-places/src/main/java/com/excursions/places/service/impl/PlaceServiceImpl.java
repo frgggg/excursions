@@ -142,7 +142,7 @@ public class PlaceServiceImpl implements PlaceService {
         return savedPlace;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
+    @Transactional
     private Place saveUtil(Long id, String name, String address, String info) {
         Place placeForSave = new Place(name, address, info);
         if(id != null) {
