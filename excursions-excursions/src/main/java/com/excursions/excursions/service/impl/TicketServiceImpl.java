@@ -77,7 +77,6 @@ public class TicketServiceImpl implements TicketService {
         return optionalTicket.get();
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Override
     public void setActiveTicketsAsDropByUser(Long id) {
         Ticket ticket = findById(id);
@@ -143,7 +142,6 @@ public class TicketServiceImpl implements TicketService {
         log.info(TICKET_SERVICE_LOG_TICKET_DROP_BY_ENDED_EXCURSIONS, endedExcursionIds);
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Override
     public void setActiveTicketsAsDropByWrongExcursions(List<Excursion> wrongExcursions) {
         List<Long> wrongExcursionsIds = null;

@@ -74,6 +74,7 @@ public class ExcursionServiceImpl implements ExcursionService {
         log.info(EXCURSION_SERVICE_LOG_SET_NOT_ENABLE_NEW_TICKETS, excursionForUpdate);
     }
 
+    @Transactional
     @Override
     public void deleteEndedExcursions() {
         List<Excursion> endedExcursions = excursionRepository.findByStopBefore(
@@ -100,8 +101,11 @@ public class ExcursionServiceImpl implements ExcursionService {
         if(!isListNotNullNotEmpty(notEndedExcursionsWithNotExistPlaces))
             return;
 
-        ticketService.setActiveTicketsAsDropByWrongExcursions(notEndedExcursionsWithNotExistPlaces);
-        excursionRepository.deleteAll(notEndedExcursionsWithNotExistPlaces);
+        try {
+            ticketService.setActiveTicketsAsDropByWrongExcursions(notEndedExcursionsWithNotExistPlaces);
+        } finally {
+            excursionRepository.deleteAll(notEndedExcursionsWithNotExistPlaces);
+        }
 
         log.info(EXCURSION_SERVICE_LOG_DELETE_NOT_ENDED_EXCURSION_BY_NOT_EXIST_PLACE, notEndedExcursionsWithNotExistPlaces, notExistPlacesIds);
     }
