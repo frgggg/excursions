@@ -77,7 +77,7 @@ public class TicketServiceImpl implements TicketService {
         return optionalTicket.get();
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Override
     public void setActiveTicketsAsDropByUser(Long id) {
         Ticket ticket = findById(id);
@@ -97,7 +97,6 @@ public class TicketServiceImpl implements TicketService {
         log.info(TICKET_SERVICE_LOG_TICKET_DROP_BY_USER, ticket.getId());
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
     @Override
     public void setActiveTicketsAsDropByNotEndedExcursions(Long id) {
         Ticket ticket = findById(id);
@@ -106,7 +105,9 @@ public class TicketServiceImpl implements TicketService {
         }
         checkExcursionForStart(excursionService.findById(ticket.getExcursionId()));
 
-        ticketRepository.updateTicketStatus(id, TicketState.DROP_BY_NOT_ENDED_EXCURSION, TicketState.ACTIVE);
+        if(ticketRepository.updateTicketStatus(id, TicketState.DROP_BY_NOT_ENDED_EXCURSION, TicketState.ACTIVE) == 0) {
+            throw new ServiceException(TICKET_SERVICE_EXCEPTION_TICKET_IS_NOT_ACTIVE);
+        }
 
         log.info(TICKET_SERVICE_LOG_TICKET_DROP_BY_NOT_ENDED_EXCURSION, ticket.getId());
     }
@@ -118,7 +119,7 @@ public class TicketServiceImpl implements TicketService {
         log.info(TICKET_SERVICE_LOG_DELETE_NOT_ACTIVE_TICKETS);
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Override
     public void setActiveTicketsAsDropByEndedExcursions(List<Excursion> endedExcursions) {
         List<Long> endedExcursionIds = null;
@@ -178,18 +179,13 @@ public class TicketServiceImpl implements TicketService {
 
         for(Ticket t: tickets) {
             try {
-                deleteTicketWithCoinsBack(t);
+                userService.coinsUpByExcursion(t.getUserId(), t.getCoinsCost());
                 log.error(TICKET_SERVICE_LOG_BACK_COINS, t.getCoinsCost(), t.getUserId());
+                ticketRepository.delete(t);
             } catch (ServiceException e) {
                 log.error(TICKET_SERVICE_LOG_ERROR_BACK_COINS, t.getCoinsCost(), t.getUserId());
             }
         }
-    }
-
-    @Transactional
-    private void deleteTicketWithCoinsBack(Ticket t) {
-        userService.coinsUpByExcursion(t.getUserId(), t.getCoinsCost());
-        ticketRepository.delete(t);
     }
 
     private void deleteNotActiveTicketsNoBackCoins() {

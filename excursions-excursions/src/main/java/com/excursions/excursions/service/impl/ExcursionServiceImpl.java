@@ -46,7 +46,6 @@ public class ExcursionServiceImpl implements ExcursionService {
         this.placeService = placeService;
     }
 
-    @Transactional
     @Override
     public Excursion save(String name, LocalDateTime start, LocalDateTime stop, Integer peopleCount, Long coinsCost, List<Long> placesIds) {
         Excursion excursionForSave = new Excursion(name, start, stop, peopleCount, coinsCost, placesIds);
@@ -55,7 +54,6 @@ public class ExcursionServiceImpl implements ExcursionService {
         return savedExcursion;
     }
 
-    @Transactional
     @Override
     public void setEnabledNewTicketsById(Long id) {
         Excursion excursionForUpdate = findById(id);
@@ -76,7 +74,6 @@ public class ExcursionServiceImpl implements ExcursionService {
         log.info(EXCURSION_SERVICE_LOG_SET_NOT_ENABLE_NEW_TICKETS, excursionForUpdate);
     }
 
-    @Transactional
     @Override
     public void deleteEndedExcursions() {
         List<Excursion> endedExcursions = excursionRepository.findByStopBefore(
@@ -91,7 +88,6 @@ public class ExcursionServiceImpl implements ExcursionService {
         log.info(EXCURSION_SERVICE_LOG_DELETE_ENDED_EXCURSION, endedExcursions);
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Override
     public void deleteNotEndedExcursionsByNotExistPlaces() {
         List<Long> allPlacesIds = excursionRepository.getAllPlacesIds();
