@@ -9,6 +9,7 @@ import com.excursions.excursions.service.TicketService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static com.excursions.excursions.exception.message.ExcursionServiceExceptionMessages.EXCURSION_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION;
 import static com.excursions.excursions.exception.message.ExcursionServiceExceptionMessages.EXCURSION_SERVICE_EXCEPTION_SAVE_OR_UPDATE_EXIST_PLACE;
@@ -70,41 +73,43 @@ public class ExcursionServiceImpl implements ExcursionService {
         log.info(EXCURSION_SERVICE_LOG_SET_NOT_ENABLE_NEW_TICKETS, excursionForUpdate);
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
+    @Transactional
     @Override
     public void deleteEndedExcursions() {
-        List<Excursion> endedExcursions = excursionRepository.findByStopBefore(LocalDateTime.now().plusDays(new Integer(deleteEndedExcursionsAfterDay)));
-        if(endedExcursions != null) {
-            if(endedExcursions.size() > 0) {
-                ticketService.setActiveTicketsAsDropByEndedExcursions(endedExcursions);
-                excursionRepository.deleteAll(endedExcursions);
-            }
+        List<Excursion> endedExcursions = excursionRepository.findByStopBefore(
+                LocalDateTime.now().plusDays(Integer.parseInt(deleteEndedExcursionsAfterDay))
+        );
+
+        if(isListNotNullNotEmpty(endedExcursions)) {
+            ticketService.setActiveTicketsAsDropByEndedExcursions(endedExcursions);
+            excursionRepository.deleteAll(endedExcursions);
         }
+
         log.info(EXCURSION_SERVICE_LOG_DELETE_ENDED_EXCURSION, endedExcursions);
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Override
     public void deleteNotEndedExcursionsByNotExistPlaces() {
-        List<Excursion> notEndedExcursionsWithNotExistPlaces = null;
-        List<Long> notExistPlacesIds = null;
+        List<Long> allPlacesIds =
+                excursionRepository.getAllPlacesIds();
+        List<Long> notExistPlacesIds =
+                placeService.getNotExistPlacesIds(allPlacesIds);
+        List<Excursion> notEndedExcursionsWithNotExistPlaces =
+                excursionRepository.findByPlacesIdsInAndStartAfter(notExistPlacesIds, LocalDateTime.now());
 
-        List<Long> allPlacesIds = excursionRepository.getAllPlacesIds();
+        if(
+                !isListNotNullNotEmpty(allPlacesIds) ||
+                !isListNotNullNotEmpty(notExistPlacesIds) ||
+                !isListNotNullNotEmpty(notEndedExcursionsWithNotExistPlaces)
+        )
+            return;
 
-        if(allPlacesIds != null) {
-            if(allPlacesIds.size() > 0) {
-                notExistPlacesIds = placeService.getNotExistPlacesIds(allPlacesIds);
-                if (notExistPlacesIds.size() > 0) {
-                    notEndedExcursionsWithNotExistPlaces = excursionRepository.findByPlacesIdsInAndStartAfter(notExistPlacesIds, LocalDateTime.now());
-                    if(notEndedExcursionsWithNotExistPlaces != null) {
-                        if(notEndedExcursionsWithNotExistPlaces.size() > 0) {
-                            ticketService.setActiveTicketsAsDropByWrongExcursions(notEndedExcursionsWithNotExistPlaces);
-                            excursionRepository.deleteAll(notEndedExcursionsWithNotExistPlaces);
-                        }
-                    }
-                }
-            }
-        }
+
+        notExistPlacesIds = placeService.getNotExistPlacesIds(allPlacesIds);
+        notEndedExcursionsWithNotExistPlaces = excursionRepository.findByPlacesIdsInAndStartAfter(notExistPlacesIds, LocalDateTime.now());
+        ticketService.setActiveTicketsAsDropByWrongExcursions(notEndedExcursionsWithNotExistPlaces);
+        excursionRepository.deleteAll(notEndedExcursionsWithNotExistPlaces);
 
         log.info(EXCURSION_SERVICE_LOG_DELETE_NOT_ENDED_EXCURSION_BY_NOT_EXIST_PLACE, notEndedExcursionsWithNotExistPlaces, notExistPlacesIds);
     }
@@ -112,39 +117,44 @@ public class ExcursionServiceImpl implements ExcursionService {
     @Override
     public Excursion findById(Long id) {
         Optional<Excursion> optionalExcursion = excursionRepository.findById(id);
-        if(!optionalExcursion.isPresent()) {
-            throw new ServiceException(String.format(EXCURSION_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION, id));
-        }
-        Excursion findByIdExcursion = optionalExcursion.get();
-        log.info(EXCURSION_SERVICE_LOG_FIND_EXCURSION, findByIdExcursion);
-        return findByIdExcursion;
+        optionalExcursion.orElseThrow(() -> new ServiceException(String.format(EXCURSION_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION, id)));
+
+        log.info(EXCURSION_SERVICE_LOG_FIND_EXCURSION, optionalExcursion.get());
+        return optionalExcursion.get();
     }
 
     @Override
     public List<Excursion> findAll() {
-        List<Excursion> excursions = new ArrayList<>();
-        excursionRepository.findAll().forEach(excursions::add);
         log.info(EXCURSION_SERVICE_LOG_FIND_ALL);
-        return excursions;
+        return StreamSupport.stream(excursionRepository.findAll().spliterator(), false)
+                .collect(Collectors.toList());
     }
 
-    private Excursion saveOrUpdateUtil() {
-
+    private Excursion saveOrUpdateUtil(Excursion excursionForSave) {
+        Excursion savedExcursion;
+        try {
+            savedExcursion = saveUtil(excursionForSave);
+        } catch (ConstraintViolationException e) {
+            throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
+        } catch (DataIntegrityViolationException e) {
+            throw new ServiceException(EXCURSION_SERVICE_EXCEPTION_SAVE_OR_UPDATE_EXIST_PLACE);
+        } catch (Exception e) {
+            throw new ServiceException(e.getMessage());
+        }
+        return savedExcursion;
     }
 
     @Transactional
     private Excursion saveUtil(Excursion excursionForSave) {
-        Excursion savedExcursion;
-        try {
-            savedExcursion = excursionRepository.save(excursionForSave);
-            entityManager.flush();
-        } catch (ConstraintViolationException e) {
-            throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
-        } catch (PersistenceException e) {
-            throw new ServiceException(EXCURSION_SERVICE_EXCEPTION_SAVE_OR_UPDATE_EXIST_PLACE);
-        }
+        return excursionRepository.save(excursionForSave);
+    }
 
-        return savedExcursion;
+    private static boolean isListNotNullNotEmpty(List list) {
+        if(list == null)
+            return false;
+        if(list.size() > 0)
+            return false;
+        return true;
     }
 
     public void setTicketService(TicketService ticketService) {
