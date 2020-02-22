@@ -29,8 +29,6 @@ import static com.excursions.excursions.log.message.ExcursionServiceLogMessages.
 @Service
 public class ExcursionServiceImpl implements ExcursionService {
 
-    private static final String SERVICE_NAME = "ExcursionServiceImpl";
-
     private ExcursionRepository excursionRepository;
     private EntityManager entityManager;
     private PlaceService placeService;
@@ -120,7 +118,7 @@ public class ExcursionServiceImpl implements ExcursionService {
     public Excursion findById(Long id) {
         Optional<Excursion> optionalExcursion = excursionRepository.findById(id);
         if(!optionalExcursion.isPresent()) {
-            throw new ServiceException(SERVICE_NAME, String.format(EXCURSION_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION, id));
+            throw new ServiceException(String.format(EXCURSION_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION, id));
         }
         Excursion findByIdExcursion = optionalExcursion.get();
         log.info(EXCURSION_SERVICE_LOG_FIND_EXCURSION, findByIdExcursion);
@@ -141,9 +139,9 @@ public class ExcursionServiceImpl implements ExcursionService {
             savedExcursion = excursionRepository.save(excursionForSave);
             entityManager.flush();
         } catch (ConstraintViolationException e) {
-            throw new ServiceException(SERVICE_NAME, e.getConstraintViolations().iterator().next().getMessage());
+            throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
         } catch (PersistenceException e) {
-            throw new ServiceException(SERVICE_NAME, EXCURSION_SERVICE_EXCEPTION_SAVE_OR_UPDATE_EXIST_PLACE);
+            throw new ServiceException(EXCURSION_SERVICE_EXCEPTION_SAVE_OR_UPDATE_EXIST_PLACE);
         }
 
         return savedExcursion;

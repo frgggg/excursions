@@ -49,23 +49,16 @@ public class ExcursionRest {
 
     @GetMapping
     public List<ExcursionDto> getAll() {
-        List<ExcursionDto> excursionDtos = null;
         List<Excursion> excursions = excursionService.findAll();
-
-        if(excursions != null) {
-            if(excursions.size() > 0) {
-                excursionDtos = excursions
+        log.info(EXCURSION_CONTROLLER_LOG_FIND_ALL);
+        if((excursions != null) && (excursions.size() > 0)) {
+                return excursions
                         .stream()
                         .map(excursion -> modelMapper.map(excursion, ExcursionDto.class))
                         .collect(Collectors.toList());
-            }
         }
 
-        if(excursionDtos == null) {
-            excursionDtos = new ArrayList<ExcursionDto>();
-        }
-        log.info(EXCURSION_CONTROLLER_LOG_FIND_ALL);
-        return excursionDtos;
+        return new ArrayList<ExcursionDto>();
     }
 
     @GetMapping(value = "/{id}")

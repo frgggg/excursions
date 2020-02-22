@@ -15,8 +15,6 @@ import static com.excursions.excursions.log.message.PlaceServiceLogMessages.PLAC
 @Service
 public class PlaceServiceImpl implements PlaceService {
 
-    private static final String SERVICE_NAME = "PlaceServiceImpl";
-
     private PlaceRepository placeRepository;
 
     @Autowired
@@ -31,10 +29,10 @@ public class PlaceServiceImpl implements PlaceService {
         try {
            notExistPlacesIds = placeRepository.getNotExistPlacesIds(placesIdsForCheck);
         } catch (IllegalStateException e) {
-            throw new ServiceException(SERVICE_NAME, e.getMessage());
+            throw new ServiceException(e.getMessage());
         }
 
-        log.debug(SERVICE_NAME, PLACE_SERVICE_LOG_GET_NOT_EXIST_PLACES_IDS);
+        log.debug(PLACE_SERVICE_LOG_GET_NOT_EXIST_PLACES_IDS);
         return notExistPlacesIds;
     }
 }

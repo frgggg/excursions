@@ -14,8 +14,6 @@ import static com.excursions.excursions.log.message.UserServiceLogMessages.USER_
 @Service
 public class UserServiceImpl implements UserService {
 
-    private String SERVICE_NAME = "UserServiceImpl";
-
     private UserRepository userRepository;
 
     @Autowired
@@ -28,10 +26,10 @@ public class UserServiceImpl implements UserService {
         try {
             userRepository.coinsDownByExcursion(id, coins);
         } catch (IllegalStateException e) {
-            throw new ServiceException(SERVICE_NAME, e.getMessage());
+            throw new ServiceException(e.getMessage());
         }
 
-        log.info(SERVICE_NAME, USER_SERVICE_LOG_DOWN_BY_EXCURSION);
+        log.info(USER_SERVICE_LOG_DOWN_BY_EXCURSION, coins, id);
     }
 
     @Override
@@ -39,9 +37,9 @@ public class UserServiceImpl implements UserService {
         try {
             userRepository.coinsUpByExcursion(id, coins);
         } catch (IllegalStateException e) {
-            throw new ServiceException(SERVICE_NAME, e.getMessage());
+            throw new ServiceException(e.getMessage());
         }
 
-        log.info(SERVICE_NAME, USER_SERVICE_LOG_UP_BY_EXCURSION);
+        log.info(USER_SERVICE_LOG_UP_BY_EXCURSION, coins, id);
     }
 }

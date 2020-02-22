@@ -84,23 +84,16 @@ public class TicketRest {
     @GetMapping
     public List<TicketDto> findAll() {
         List<Ticket> tickets = ticketService.findAll();
-        List<TicketDto> ticketDtos = null;
+        log.info(TICKET_CONTROLLER_LOG_FIND_ALL);
 
-        if(tickets != null) {
-            if(tickets.size() > 0) {
-                ticketDtos = tickets
+        if((tickets != null) && (tickets.size() > 0)){
+            return tickets
                         .stream()
                         .map(ticket -> modelMapper.map(ticket, TicketDto.class))
                         .collect(Collectors.toList());
-            }
         }
 
-        if(ticketDtos == null) {
-            ticketDtos = new ArrayList<TicketDto>();
-        }
-
-        log.info(TICKET_CONTROLLER_LOG_FIND_ALL);
-        return ticketDtos;
+        return new ArrayList<TicketDto>();
     }
 
     @GetMapping(value = "/{id}")

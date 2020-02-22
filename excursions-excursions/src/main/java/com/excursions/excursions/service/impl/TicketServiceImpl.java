@@ -31,8 +31,6 @@ import static com.excursions.excursions.log.message.TicketServiceLogMessages.*;
 @Service
 public class TicketServiceImpl implements TicketService {
 
-    private static final String SERVICE_NAME = "TicketServiceImpl";
-
     @Value("${ticket.drop-by-user-before-stop.day}")
     private String deleteByUserBeforeStartMinusDay;
 
@@ -56,15 +54,15 @@ public class TicketServiceImpl implements TicketService {
         checkExcursionForStart(excursion);
 
         if(!expectedCoinsCost.equals(excursion.getCoinsCost())) {
-            throw new ServiceException(SERVICE_NAME, TICKET_SERVICE_EXCEPTION_WRONG_COST);
+            throw new ServiceException(TICKET_SERVICE_EXCEPTION_WRONG_COST);
         }
 
         if(!excursion.getEnableNewTickets()) {
-            throw new ServiceException(SERVICE_NAME, TICKET_SERVICE_EXCEPTION_NEW_TICKET_NOT_ENABLE);
+            throw new ServiceException(TICKET_SERVICE_EXCEPTION_NEW_TICKET_NOT_ENABLE);
         }
 
         if(ticketRepository.countByExcursionIdAndState(excursionId, TicketState.ACTIVE) >= excursion.getPeopleCount()) {
-            throw new ServiceException(SERVICE_NAME, TICKET_SERVICE_EXCEPTION_MAX_PEOPLE_COUNT);
+            throw new ServiceException(TICKET_SERVICE_EXCEPTION_MAX_PEOPLE_COUNT);
         }
 
         Ticket ticketForSave = new Ticket(excursionId, expectedCoinsCost, userId);
@@ -86,7 +84,7 @@ public class TicketServiceImpl implements TicketService {
     public Ticket findById(Long id) {
         Optional<Ticket> optionalTicket = ticketRepository.findById(id);
         if(!optionalTicket.isPresent()) {
-            throw new ServiceException(SERVICE_NAME, String.format(TICKET_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION, id));
+            throw new ServiceException(String.format(TICKET_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION, id));
         }
         Ticket findByIdTicket = optionalTicket.get();
         log.info(TICKET_SERVICE_LOG_FIND_EXCURSION, findByIdTicket);
@@ -98,13 +96,13 @@ public class TicketServiceImpl implements TicketService {
     public void setActiveTicketsAsDropByUser(Long id) {
         Ticket ticket = findById(id);
         if(!TicketState.ACTIVE.equals(ticket.getState())) {
-            throw new ServiceException(SERVICE_NAME, TICKET_SERVICE_EXCEPTION_TICKET_IS_NOT_ACTIVE);
+            throw new ServiceException( TICKET_SERVICE_EXCEPTION_TICKET_IS_NOT_ACTIVE);
         }
 
         Excursion excursion = excursionService.findById(ticket.getExcursionId());
 
-        if(LocalDateTime.now().plusDays(new Integer(deleteByUserBeforeStartMinusDay)).isAfter(excursion.getStart())) {
-            throw new ServiceException(SERVICE_NAME, TICKET_SERVICE_EXCEPTION_EXCURSION_STARTED);
+        if(LocalDateTime.now().plusDays(Integer.parseInt(deleteByUserBeforeStartMinusDay)).isAfter(excursion.getStart())) {
+            throw new ServiceException( TICKET_SERVICE_EXCEPTION_EXCURSION_STARTED);
         }
 
         ticket.setState(TicketState.DROP_BY_USER);
@@ -117,7 +115,7 @@ public class TicketServiceImpl implements TicketService {
     public void setActiveTicketsAsDropByNotEndedExcursions(Long id) {
         Ticket ticket = findById(id);
         if(!TicketState.ACTIVE.equals(ticket.getState())) {
-            throw new ServiceException(SERVICE_NAME, TICKET_SERVICE_EXCEPTION_TICKET_IS_NOT_ACTIVE);
+            throw new ServiceException(TICKET_SERVICE_EXCEPTION_TICKET_IS_NOT_ACTIVE);
         }
         checkExcursionForStart(excursionService.findById(ticket.getExcursionId()));
 
@@ -216,7 +214,7 @@ public class TicketServiceImpl implements TicketService {
 
     private void checkExcursionForStart(Excursion excursion) {
         if(LocalDateTime.now().isAfter(excursion.getStart())) {
-            throw new ServiceException(SERVICE_NAME, TICKET_SERVICE_EXCEPTION_EXCURSION_STARTED);
+            throw new ServiceException(TICKET_SERVICE_EXCEPTION_EXCURSION_STARTED);
         }
     }
 
@@ -226,7 +224,7 @@ public class TicketServiceImpl implements TicketService {
             savedTicket = ticketRepository.save(ticketForSave);
             entityManager.flush();
         } catch (ConstraintViolationException e) {
-            throw new ServiceException(SERVICE_NAME, e.getConstraintViolations().iterator().next().getMessage());
+            throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
         }
 
         return savedTicket;

@@ -37,7 +37,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
 
     compile group: 'org.modelmapper', name: 'modelmapper', version: '2.1.0'
-    //compile group: 'org.flywaydb', name: 'flyway-core', version: '6.1.0'
+    //implementation 'org.flywaydb:flyway-core'
 
 
     runtimeOnly 'org.postgresql:postgresql'
