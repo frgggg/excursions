@@ -13,16 +13,16 @@ services:
       - ./init:/docker-entrypoint-initdb.d/
 
   excursion:
-    build: ./excursions-excursions/build/lib
+    build: ./excursions-excursions/docker
     ports:
       -8090:8090
 
   user:
-    build: ./excursions-users/build/lib
+    build: ./excursions-users/docker
     ports:
       -8070:8070
 
   place:
-    build: ./excursions-places/build/lib
+    build: ./excursions-places/docker
     ports:
       -8080:8080
