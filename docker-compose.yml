@@ -1,0 +1,28 @@
+version: '3.1'
+
+services:
+  postgres:
+    image: postgres:9.6-alpine
+    ports:
+      - '5432:5432'
+    container_name: postgres_items
+    environment:
+      POSTGRES_USER: 'hameiste'
+      POSTGRES_PASSWORD: 'hameistePW'
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d/
+
+  excursion:
+    build: ./excursions-excursions/build/lib
+    ports:
+      -8090:8090
+
+  user:
+    build: ./excursions-users/build/lib
+    ports:
+      -8070:8070
+
+  place:
+    build: ./excursions-places/build/lib
+    ports:
+      -8080:8080
