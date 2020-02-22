@@ -47,6 +47,7 @@ public class UserServiceImpl implements UserService {
         this.excursionService = excursionService;
     }
 
+    @Transactional
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User create(String name) {
@@ -56,6 +57,7 @@ public class UserServiceImpl implements UserService {
         return savedUser;
     }
 
+    @Transactional
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User update(Long id, String name) {
@@ -93,11 +95,11 @@ public class UserServiceImpl implements UserService {
             throw new ServiceException(String.format(USER_SERVICE_EXCEPTION_USER_HAVE_TICKETS_OR_COINS, id));
         }
 
-        //userRepository.deleteById(id);
         userRepository.deleteUser(id, userForDelete.getCoinsLastUpdate());
         log.info(USER_SERVICE_LOG_DELETE_USER, userForDelete);
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsDownByExcursion(Long id, Long coins) {
@@ -106,6 +108,7 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsDownByUser(Long id, Long coins) {
@@ -114,6 +117,7 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsUpByExcursion(Long id, Long coins) {
@@ -122,6 +126,7 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsUpByUser(Long id, Long coins) {
@@ -130,7 +135,6 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     private User updateCoins(Long id, Long coins, boolean isUp) {
         User user = self.findById(id);
 
@@ -176,24 +180,15 @@ public class UserServiceImpl implements UserService {
         return newCoins;
     }
 
-    private User saveOrUpdateUtil(User user) {
+    private User saveOrUpdateUtil(User userForSave) {
         User savedUser;
         try {
-            savedUser = saveUtil(user);
+            savedUser = userRepository.save(userForSave);
         } catch (ConstraintViolationException e) {
             throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
         } catch (Exception e) {
             throw new ServiceException(e.getMessage());
         }
         return savedUser;
-    }
-    @Transactional
-    private User saveUtil(User user) {
-        User userForSave = new User(user.getName());
-        userForSave.setId(user.getId());
-        userForSave.setCoins(user.getCoins());
-        userForSave.setCoinsLastUpdate(user.getCoinsLastUpdate());
-
-        return userRepository.save(userForSave);
     }
 }
