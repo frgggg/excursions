@@ -30,20 +30,16 @@ import static com.excursions.places.log.message.PlaceServiceLogMessages.*;
 @Slf4j
 public class PlaceServiceImpl implements PlaceService {
 
-    private static final String SERVICE_NAME = "PlaceServiceImpl";
-
     private static final String PLACE_CACHE_NAME = "placeCache";
     private static final String PLACES_CACHE_NAME = "placesCache";
 
     private PlaceRepository placeRepository;
-    private EntityManager entityManager;
     private PlaceServiceImpl self;
 
     @Lazy
     @Autowired
-    protected PlaceServiceImpl(PlaceRepository placeRepository, EntityManager entityManager, PlaceServiceImpl self) {
+    protected PlaceServiceImpl(PlaceRepository placeRepository, PlaceServiceImpl self) {
         this.placeRepository = placeRepository;
-        this.entityManager = entityManager;
         this.self = self;
     }
 
@@ -114,9 +110,9 @@ public class PlaceServiceImpl implements PlaceService {
     public List<Long> getNotExistPlacesIds(List<Long> placesIdsForCheck) {
 
         if(placesIdsForCheck == null) {
-            throw new ServiceException(SERVICE_NAME, PLACE_SERVICE_EXCEPTION_NULL_OR_EMPTY_PLACES_IDS_LIST_FOR_CHECK);
+            throw new ServiceException(PLACE_SERVICE_EXCEPTION_NULL_OR_EMPTY_PLACES_IDS_LIST_FOR_CHECK);
         } else if(placesIdsForCheck.size() < 1) {
-            throw new ServiceException(SERVICE_NAME, PLACE_SERVICE_EXCEPTION_NULL_OR_EMPTY_PLACES_IDS_LIST_FOR_CHECK);
+            throw new ServiceException(PLACE_SERVICE_EXCEPTION_NULL_OR_EMPTY_PLACES_IDS_LIST_FOR_CHECK);
         }
 
         List<Long> existPlacesIds = findAllIds();
@@ -137,14 +133,14 @@ public class PlaceServiceImpl implements PlaceService {
         try {
             savedPlace = saveUtil(id, name, address, info);
         } catch (ConstraintViolationException e) {
-            throw new ServiceException(SERVICE_NAME, e.getConstraintViolations().iterator().next().getMessage());
+            throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
         } catch (PersistenceException e) {
-            throw new ServiceException(SERVICE_NAME, PLACE_SERVICE_EXCEPTION_SAVE_OR_UPDATE_EXIST_PLACE);
+            throw new ServiceException(PLACE_SERVICE_EXCEPTION_SAVE_OR_UPDATE_EXIST_PLACE);
         }
         return savedPlace;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     private Place saveUtil(Long id, String name, String address, String info) {
         Place placeForSave = new Place(name, address, info);
         if(id != null) {

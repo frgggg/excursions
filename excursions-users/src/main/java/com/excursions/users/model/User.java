@@ -13,7 +13,7 @@ import static com.excursions.users.validation.message.ValidationMessagesComponen
 
 @Data
 @Entity
-@Table(name = "users")//, schema = "users_schema_v3")
+@Table(name = "users")
 public class User {
     public static final String USER_NAME_FIELD_NAME = "name";
     public static final int USER_NAME_LEN_MIN = 1;
@@ -29,8 +29,7 @@ public class User {
     public static final String  USER_COINS_LAST_UPDATE_VALIDATION_MESSAGE = USER_COINS_LAST_UPDATE_FIELD_NAME + LOCAL_DATA_TIME_FIELD_NOTNULL;
 
     @Id
-    @SequenceGenerator(name = "users_sequence_gen", sequenceName = "users_sequence",
-            initialValue = 1, allocationSize = 1)
+    @SequenceGenerator(name = "users_sequence_gen", sequenceName = "users_sequence", allocationSize = 1)
     @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="users_sequence_gen")
     @Column(name = "id", nullable = false, updatable = false)
     private Long id;

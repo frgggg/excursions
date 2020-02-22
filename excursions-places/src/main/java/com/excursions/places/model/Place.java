@@ -36,7 +36,12 @@ public class Place {
             PLACE_INFO_FIELD_NAME + STRING_FIELD_NOTNULL_MIN_MAX + PLACE_INFO_LEN_MIN + STRING_FIELD_NOTNULL_MIN_MAX_DIVIDE + PLACE_INFO_LEN_MAX;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @SequenceGenerator(
+            name = "places_sequence_gen",
+            sequenceName = "places_sequence",
+            initialValue = 1, allocationSize = 1)
+    @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="places_sequence_gen")
+    @Column(name = "id", nullable = false, updatable = false)
     private Long id;
 
     @Column(name = "name", length = PLACE_NAME_LEN_MAX, nullable = false)
