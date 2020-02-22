@@ -1,5 +1,16 @@
-create table places (id int8 not null, address varchar(100) not null, info varchar(200) not null, name varchar(90) not null, primary key (id));
+CREATE SEQUENCE PLACES_SEQUENCE
+    START 1
+    INCREMENT 1
+    ;
 
-alter table if exists places add constraint UK8ojgqwd8wuu1sh8w09nathx11 unique (name, address);
+CREATE TABLE PLACES (
+    id BIGINT DEFAULT nextval('PLACES_SEQUENCE') NOT NULL,
+    address VARCHAR(100) NOT NULL,
+    info VARCHAR(200) NOT NULL,
+    name VARCHAR(90) NOT NULL,
+    primary key (id)
+);
 
-create sequence hibernate_sequence start 1 increment 1;
+ALTER TABLE
+IF EXISTS PLACES
+ADD CONSTRAINT PLACE_NAME_AND_ADDRESS_CONSTRAINT UNIQUE (name, address);

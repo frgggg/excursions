@@ -33,21 +33,17 @@ public class PlaceRest {
     @GetMapping
     public List<PlaceDto> findAll() {
         List<Place> places =  placeService.findAll();
-        List<PlaceDto> placeDtos = null;
-        if(places != null) {
-            if(places.size() > 0) {
-                placeDtos = places
+        log.debug(PLACE_CONTROLLER_LOG_GET_ALL_PLACES);
+        if((places != null) && (places.size() > 0)) {
+
+            return places
                         .stream()
                         .map(book -> modelMapper.map(book, PlaceDto.class))
                         .collect(Collectors.toList());
-            }
+
         }
 
-        if(placeDtos == null) {
-            placeDtos = new ArrayList<>();
-        }
-        log.debug(PLACE_CONTROLLER_LOG_GET_ALL_PLACES);
-        return placeDtos;
+        return new ArrayList<PlaceDto>();
     }
 
     @GetMapping(value = "/{id}")

@@ -11,6 +11,7 @@ import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,9 +74,8 @@ public class PlaceServiceImpl implements PlaceService {
         Optional<Place> optionalPlace = placeRepository.findById(id);
         optionalPlace.orElseThrow(() -> new ServiceException(String.format(PLACE_SERVICE_EXCEPTION_NOT_EXIST_PLACE, id)));
 
-        Place findByIdPlace = optionalPlace.get();
-        log.debug(PLACE_SERVICE_LOG_GET_PLACE, findByIdPlace);
-        return findByIdPlace;
+        log.debug(PLACE_SERVICE_LOG_GET_PLACE, optionalPlace.get());
+        return optionalPlace.get();
     }
 
     @Cacheable(value= PLACES_CACHE_NAME, unless= "#result.size() == 0")
@@ -134,8 +134,10 @@ public class PlaceServiceImpl implements PlaceService {
             savedPlace = saveUtil(id, name, address, info);
         } catch (ConstraintViolationException e) {
             throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
-        } catch (PersistenceException e) {
+        } catch (DataIntegrityViolationException e) {
             throw new ServiceException(PLACE_SERVICE_EXCEPTION_SAVE_OR_UPDATE_EXIST_PLACE);
+        } catch (Exception e) {
+            throw new ServiceException(e.getMessage());
         }
         return savedPlace;
     }

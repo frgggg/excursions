@@ -39,7 +39,7 @@ public class Place {
     @SequenceGenerator(
             name = "places_sequence_gen",
             sequenceName = "places_sequence",
-            initialValue = 1, allocationSize = 1)
+            allocationSize = 1)
     @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="places_sequence_gen")
     @Column(name = "id", nullable = false, updatable = false)
     private Long id;
