@@ -21,6 +21,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static com.excursions.places.exception.message.PlaceServiceExceptionMessages.*;
 import static com.excursions.places.log.message.PlaceServiceLogMessages.*;
@@ -46,19 +47,17 @@ public class PlaceServiceImpl implements PlaceService {
         this.self = self;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
     @Caching(
             put= { @CachePut(value= PLACE_CACHE_NAME, key= "#result.id") },
             evict= { @CacheEvict(value= PLACES_CACHE_NAME, allEntries= true) }
     )
     @Override
     public Place create(String name, String address, String info) {
-        Place savedPlace = saveUtil(null, name, address, info);
+        Place savedPlace = saveOrUpdateUtil(null, name, address, info);
         log.debug(PLACE_SERVICE_LOG_NEW_PLACE, savedPlace);
         return savedPlace;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
     @Caching(
             put= { @CachePut(value= PLACE_CACHE_NAME, key= "#result.id") },
             evict= { @CacheEvict(value= PLACES_CACHE_NAME, allEntries= true) }
@@ -66,7 +65,7 @@ public class PlaceServiceImpl implements PlaceService {
     @Override
     public Place update(Long id, String name, String address, String info) {
         Place placeForUpdate = self.findById(id);
-        Place updatedPlace = saveUtil(id, name, address, info);
+        Place updatedPlace = saveOrUpdateUtil(id, name, address, info);
 
         log.debug(PLACE_SERVICE_LOG_UPDATE_PLACE, placeForUpdate, updatedPlace);
         return updatedPlace;
@@ -76,9 +75,7 @@ public class PlaceServiceImpl implements PlaceService {
     @Override
     public Place findById(Long id) {
         Optional<Place> optionalPlace = placeRepository.findById(id);
-        if(!optionalPlace.isPresent()) {
-            throw new ServiceException(SERVICE_NAME, String.format(PLACE_SERVICE_EXCEPTION_NOT_EXIST_PLACE, id));
-        }
+        optionalPlace.orElseThrow(() -> new ServiceException(String.format(PLACE_SERVICE_EXCEPTION_NOT_EXIST_PLACE, id)));
 
         Place findByIdPlace = optionalPlace.get();
         log.debug(PLACE_SERVICE_LOG_GET_PLACE, findByIdPlace);
@@ -88,11 +85,9 @@ public class PlaceServiceImpl implements PlaceService {
     @Cacheable(value= PLACES_CACHE_NAME, unless= "#result.size() == 0")
     @Override
     public List<Place> findAll() {
-        List<Place> places = new ArrayList<>();
-        placeRepository.findAll().forEach(places::add);
-
         log.debug(PLACE_SERVICE_LOG_GET_ALL_PLACES);
-        return places;
+        return StreamSupport.stream(placeRepository.findAll().spliterator(), false)
+                .collect(Collectors.toList());
     }
 
     @Caching(
@@ -137,22 +132,25 @@ public class PlaceServiceImpl implements PlaceService {
         return new ArrayList<>(notExistPlacesIds);
     }
 
+    private Place saveOrUpdateUtil(Long id, String name, String address, String info) {
+        Place savedPlace;
+        try {
+            savedPlace = saveUtil(id, name, address, info);
+        } catch (ConstraintViolationException e) {
+            throw new ServiceException(SERVICE_NAME, e.getConstraintViolations().iterator().next().getMessage());
+        } catch (PersistenceException e) {
+            throw new ServiceException(SERVICE_NAME, PLACE_SERVICE_EXCEPTION_SAVE_OR_UPDATE_EXIST_PLACE);
+        }
+        return savedPlace;
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
     private Place saveUtil(Long id, String name, String address, String info) {
         Place placeForSave = new Place(name, address, info);
         if(id != null) {
             placeForSave.setId(id);
         }
 
-        Place savedPlace;
-        try {
-            savedPlace = placeRepository.save(placeForSave);
-            entityManager.flush();
-        } catch (ConstraintViolationException e) {
-            throw new ServiceException(SERVICE_NAME, e.getConstraintViolations().iterator().next().getMessage());
-        } catch (PersistenceException e) {
-            throw new ServiceException(SERVICE_NAME, PLACE_SERVICE_EXCEPTION_SAVE_OR_UPDATE_EXIST_PLACE);
-        }
-
-        return savedPlace;
+        return placeRepository.save(placeForSave);
     }
 }

@@ -77,10 +77,10 @@ public class UserServiceImpl implements UserService {
     @Cacheable(value = USER_CACHE_NAME, key = "#id")
     @Override
     public User findById(Long id) {
-        Optional<User> optionalPlace = userRepository.findById(id);
-        optionalPlace.orElseThrow(() -> new ServiceException(String.format(USER_SERVICE_EXCEPTION_NOT_EXIST_USER, id)));
-        log.info(USER_SERVICE_LOG_GET_USER, optionalPlace.get());
-        return optionalPlace.get();
+        Optional<User> optionalUser = userRepository.findById(id);
+        optionalUser.orElseThrow(() -> new ServiceException(String.format(USER_SERVICE_EXCEPTION_NOT_EXIST_USER, id)));
+        log.info(USER_SERVICE_LOG_GET_USER, optionalUser.get());
+        return optionalUser.get();
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
