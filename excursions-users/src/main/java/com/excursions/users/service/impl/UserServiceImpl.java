@@ -16,10 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
 import javax.validation.ConstraintViolationException;
-
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -27,7 +25,6 @@ import java.util.stream.StreamSupport;
 
 import static com.excursions.users.exception.message.UserServiceExceptionMessages.*;
 import static com.excursions.users.log.message.UserServiceLogMessages.*;
-import static com.excursions.users.model.User.USER_COINS_VALIDATION_MESSAGE;
 
 @Service
 @Slf4j
@@ -53,9 +50,21 @@ public class UserServiceImpl implements UserService {
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User create(String name) {
-        User savedUser = saveUtil(null, name, null);
+        User savedUser;
+        savedUser = saveOrUpdateUtil(new User(name));
         log.info(USER_SERVICE_LOG_NEW_USER, savedUser);
         return savedUser;
+    }
+
+    @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
+    @Override
+    public User update(Long id, String name) {
+        User userForUpdate = self.findById(id);
+        userForUpdate.setName(name);
+        User updatedUser;
+        updatedUser = saveOrUpdateUtil(userForUpdate);
+        log.info(USER_SERVICE_LOG_UPDATE_USER, userForUpdate, updatedUser);
+        return updatedUser;
     }
 
     @Override
@@ -74,30 +83,21 @@ public class UserServiceImpl implements UserService {
         return optionalPlace.get();
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
-    @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
-    @Override
-    public User update(Long id, String name) {
-        User userForUpdate = self.findById(id);
-        User updatedUser = saveUtil(id, name, userForUpdate.getCoins());
-        log.info(USER_SERVICE_LOG_UPDATE_USER, userForUpdate, updatedUser);
-        return updatedUser;
-    }
-
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Caching(evict= {@CacheEvict(value= USER_CACHE_NAME, key= "#id")})
     @Override
     public void deleteById(Long id) {
         User userForDelete = self.findById(id);
 
-        if(excursionService.userTicketsCount(id) > 0){
-            throw new ServiceException(String.format(USER_SERVICE_EXCEPTION_USER_HAVE_TICKETS, id));
+        if((excursionService.userTicketsCount(id) > 0) || (userForDelete.getCoins() != 0)){
+            throw new ServiceException(String.format(USER_SERVICE_EXCEPTION_USER_HAVE_TICKETS_OR_COINS, id));
         }
 
-        userRepository.deleteById(id);
+        //userRepository.deleteById(id);
+        userRepository.deleteUser(id, userForDelete.getCoinsLastUpdate());
         log.info(USER_SERVICE_LOG_DELETE_USER, userForDelete);
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsDownByExcursion(Long id, Long coins) {
@@ -106,7 +106,6 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsDownByUser(Long id, Long coins) {
@@ -115,7 +114,6 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsUpByExcursion(Long id, Long coins) {
@@ -124,7 +122,6 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = ServiceException.class)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsUpByUser(Long id, Long coins) {
@@ -133,46 +130,69 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     private User updateCoins(Long id, Long coins, boolean isUp) {
-        checkCoins(coins);
-        User userForUpdate = self.findById(id);
+        User user = self.findById(id);
 
-        Long nowCoins = userForUpdate.getCoins();
-        if(isUp) {
-            if((Long.MAX_VALUE - nowCoins) < coins) {
-                throw new ServiceException(USER_COINS_VALIDATION_MESSAGE);
-            }
-            nowCoins += coins;
-        } else {
-            nowCoins -= coins;
-            if(nowCoins < 0l) {
-                throw new ServiceException(USER_COINS_VALIDATION_MESSAGE);
-            }
+        Long oldCoins = user.getCoins();
+        Long newCoins = getNewCoins(coins, isUp, oldCoins);
+
+        LocalDateTime oldCoinsLastUpdate = user.getCoinsLastUpdate();
+        LocalDateTime newCoinsLastUpdate = LocalDateTime.now();
+
+        if(userRepository.updateCoins(id, oldCoins, oldCoinsLastUpdate, newCoins, newCoinsLastUpdate) == 0) {
+            throw new ServiceException(String.format(USER_SERVICE_EXCEPTION_WRONG_COINS_UPDATE, user));
         }
-        return saveUtil(id, userForUpdate.getName(), nowCoins);
+
+        user.setCoins(newCoins);
+        user.setCoinsLastUpdate(newCoinsLastUpdate);
+        return user;
     }
 
-    private void checkCoins(Long coins) {
+    private Long getNewCoins(Long coins, boolean isUp, Long currentCoins) {
+        Long newCoins = currentCoins;
         boolean needException = false;
         if(coins == null) {
             needException = true;
         } else if(coins <= 0) {
             needException = true;
+        } else {
+            if (isUp) {
+                if ((Long.MAX_VALUE - currentCoins) < coins) {
+                    needException = true;
+                }
+                newCoins += coins;
+            } else {
+                if ((currentCoins - coins) < 0l) {
+                    needException = true;
+                }
+                newCoins -= coins;
+            }
         }
 
         if(needException) {
             throw new ServiceException(USER_SERVICE_EXCEPTION_WRONG_COINS_ARGS);
         }
+        return newCoins;
     }
 
-    private User saveUtil(Long id, String name, Long coins) {
-        User userForSave = new User(name);
-        if(id != null) {
-            userForSave.setId(id);
+    private User saveOrUpdateUtil(User user) {
+        User savedUser;
+        try {
+            savedUser = saveUtil(user);
+        } catch (ConstraintViolationException e) {
+            throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
+        } catch (Exception e) {
+            throw new ServiceException(e.getMessage());
         }
-        if(coins != null) {
-            userForSave.setCoins(coins);
-        }
+        return savedUser;
+    }
+    @Transactional
+    private User saveUtil(User user) {
+        User userForSave = new User(user.getName());
+        userForSave.setId(user.getId());
+        userForSave.setCoins(user.getCoins());
+        userForSave.setCoinsLastUpdate(user.getCoinsLastUpdate());
 
         return userRepository.save(userForSave);
     }

@@ -4,9 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
-import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+
+import java.time.LocalDateTime;
 
 import static com.excursions.users.model.User.*;
 
@@ -22,6 +23,8 @@ public class UserDto {
     private String name;
 
     private Long coins;
+
+    private LocalDateTime coinsLastUpdate;
 
     public UserDto() {}
 }
