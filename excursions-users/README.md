@@ -27,12 +27,12 @@ Entities.
                 Url "/user".
                 Method: POST.
                 In: json{name}.
-                Return: Excursion
+                Return: User
         1.2.2)  Name: "create".
                 Url "/user/{id}".
                 Method: PUT.
                 In: json{name}.
-                Return: Excursion
+                Return: User
         1.2.3)  Name: "getAll".
                 Url "/user".
                 Method: GET.
@@ -45,23 +45,23 @@ Entities.
                 In: -.
                 Return: User
         
-        1.2.5)  Name: "setNewTicketsEnable".
+        1.2.5)  Name: "coinsUpByUser".
                 Url "/user/{id}/coins-up-by-user".
                 Method: PUT.
                 In path variable: coins.
                 Return: -
-        1.2.6)  Name: "setNewTicketsEnable".
+        1.2.6)  Name: "coinsDownByUser".
                 Url "/user/{id}/coins-down-by-user".
                 Method: PUT.
                 In path variable: coins.
                 Return: -
                 
-        1.2.7)  Name: "setNewTicketsEnable".
+        1.2.7)  Name: "coinsUpByExcursion".
                 Url "/user/{id}/coins-up-by-excursion".
                 Method: PUT.
                 In path variable: coins.
                 Return: -
-        1.2.7)  Name: "setNewTicketsEnable".
+        1.2.7)  Name: "coinsDownByExcursion".
                 Url "/user/{id}/coins-down-by-excursion".
                 Method: PUT.
                 In path variable: coins.
