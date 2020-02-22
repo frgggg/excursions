@@ -44,6 +44,7 @@ public class PlaceServiceImpl implements PlaceService {
         this.self = self;
     }
 
+    @Transactional
     @Caching(
             put= { @CachePut(value= PLACE_CACHE_NAME, key= "#result.id") },
             evict= { @CacheEvict(value= PLACES_CACHE_NAME, allEntries= true) }
@@ -55,6 +56,7 @@ public class PlaceServiceImpl implements PlaceService {
         return savedPlace;
     }
 
+    @Transactional
     @Caching(
             put= { @CachePut(value= PLACE_CACHE_NAME, key= "#result.id") },
             evict= { @CacheEvict(value= PLACES_CACHE_NAME, allEntries= true) }
@@ -131,7 +133,11 @@ public class PlaceServiceImpl implements PlaceService {
     private Place saveOrUpdateUtil(Long id, String name, String address, String info) {
         Place savedPlace;
         try {
-            savedPlace = saveUtil(id, name, address, info);
+            Place placeForSave = new Place(name, address, info);
+            if(id != null) {
+                placeForSave.setId(id);
+            }
+            savedPlace = placeRepository.save(placeForSave);
         } catch (ConstraintViolationException e) {
             throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
         } catch (DataIntegrityViolationException e) {
@@ -140,15 +146,5 @@ public class PlaceServiceImpl implements PlaceService {
             throw new ServiceException(e.getMessage());
         }
         return savedPlace;
-    }
-
-    @Transactional
-    private Place saveUtil(Long id, String name, String address, String info) {
-        Place placeForSave = new Place(name, address, info);
-        if(id != null) {
-            placeForSave.setId(id);
-        }
-
-        return placeRepository.save(placeForSave);
     }
 }
