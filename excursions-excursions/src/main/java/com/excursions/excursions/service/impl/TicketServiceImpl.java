@@ -188,8 +188,8 @@ public class TicketServiceImpl implements TicketService {
 
     @Transactional
     private void deleteTicketWithCoinsBack(Ticket t) {
-        ticketRepository.delete(t);
         userService.coinsUpByExcursion(t.getUserId(), t.getCoinsCost());
+        ticketRepository.delete(t);
     }
 
     private void deleteNotActiveTicketsNoBackCoins() {
