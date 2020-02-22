@@ -47,7 +47,6 @@ public class UserServiceImpl implements UserService {
         this.excursionService = excursionService;
     }
 
-    @Transactional
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User create(String name) {
@@ -57,7 +56,6 @@ public class UserServiceImpl implements UserService {
         return savedUser;
     }
 
-    @Transactional
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User update(Long id, String name) {
@@ -85,7 +83,6 @@ public class UserServiceImpl implements UserService {
         return optionalUser.get();
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Caching(evict= {@CacheEvict(value= USER_CACHE_NAME, key= "#id")})
     @Override
     public void deleteById(Long id) {
@@ -99,7 +96,6 @@ public class UserServiceImpl implements UserService {
         log.info(USER_SERVICE_LOG_DELETE_USER, userForDelete);
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsDownByExcursion(Long id, Long coins) {
@@ -108,7 +104,6 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsDownByUser(Long id, Long coins) {
@@ -117,7 +112,6 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsUpByExcursion(Long id, Long coins) {
@@ -126,7 +120,6 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Caching(put= {@CachePut(value= USER_CACHE_NAME, key= "#result.id")})
     @Override
     public User coinsUpByUser(Long id, Long coins) {
