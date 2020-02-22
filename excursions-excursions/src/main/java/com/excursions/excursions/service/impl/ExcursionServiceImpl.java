@@ -46,6 +46,7 @@ public class ExcursionServiceImpl implements ExcursionService {
         this.placeService = placeService;
     }
 
+    @Transactional
     @Override
     public Excursion save(String name, LocalDateTime start, LocalDateTime stop, Integer peopleCount, Long coinsCost, List<Long> placesIds) {
         Excursion excursionForSave = new Excursion(name, start, stop, peopleCount, coinsCost, placesIds);
@@ -54,6 +55,7 @@ public class ExcursionServiceImpl implements ExcursionService {
         return savedExcursion;
     }
 
+    @Transactional
     @Override
     public void setEnabledNewTicketsById(Long id) {
         Excursion excursionForUpdate = findById(id);
@@ -127,7 +129,7 @@ public class ExcursionServiceImpl implements ExcursionService {
     private Excursion saveOrUpdateUtil(Excursion excursionForSave) {
         Excursion savedExcursion;
         try {
-            savedExcursion = saveUtil(excursionForSave);
+            savedExcursion = excursionRepository.save(excursionForSave);
         } catch (ConstraintViolationException e) {
             throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
         } catch (DataIntegrityViolationException e) {
@@ -136,11 +138,6 @@ public class ExcursionServiceImpl implements ExcursionService {
             throw new ServiceException(e.getMessage());
         }
         return savedExcursion;
-    }
-
-    @Transactional
-    private Excursion saveUtil(Excursion excursionForSave) {
-        return excursionRepository.save(excursionForSave);
     }
 
     public void setTicketService(TicketService ticketService) {

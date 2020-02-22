@@ -44,7 +44,6 @@ public class PlaceServiceImpl implements PlaceService {
         this.self = self;
     }
 
-    @Transactional
     @Caching(
             put= { @CachePut(value= PLACE_CACHE_NAME, key= "#result.id") },
             evict= { @CacheEvict(value= PLACES_CACHE_NAME, allEntries= true) }
@@ -56,7 +55,6 @@ public class PlaceServiceImpl implements PlaceService {
         return savedPlace;
     }
 
-    @Transactional
     @Caching(
             put= { @CachePut(value= PLACE_CACHE_NAME, key= "#result.id") },
             evict= { @CacheEvict(value= PLACES_CACHE_NAME, allEntries= true) }
