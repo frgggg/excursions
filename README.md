@@ -1,5 +1,4 @@
 # excursions
-
-
-# docker:
-no test because 32bit dev + many gconf2 errors
+- users service
+- places service
+- excursions and tickets service
