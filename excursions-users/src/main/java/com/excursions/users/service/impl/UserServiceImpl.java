@@ -83,6 +83,7 @@ public class UserServiceImpl implements UserService {
         return optionalUser.get();
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Caching(evict= {@CacheEvict(value= USER_CACHE_NAME, key= "#id")})
     @Override
     public void deleteById(Long id) {
