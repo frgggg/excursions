@@ -20,17 +20,14 @@ public interface TicketRepository extends CrudRepository<Ticket, Long> {
 
     List<Ticket> findByStateNotIn(List<TicketState> ticketStates);
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Modifying
     @Query(value = "update Ticket t set t.state=?2 where t.id=?1 and t.state=?3")
     int updateTicketStatus(Long id, TicketState newTicketState, TicketState oldTicketState);
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Modifying
     @Query(value = "update Ticket t set t.state=?2 where t.id in ?1 and t.state=?3")
     int updateTicketsStatus(List<Long> id, TicketState newTicketState, TicketState oldTicketState);
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Modifying
     void deleteByState(TicketState ticketState);
 }

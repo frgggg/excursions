@@ -87,7 +87,7 @@ public class TicketServiceImpl implements TicketService {
         Excursion excursion = excursionService.findById(ticket.getExcursionId());
 
         if(LocalDateTime.now().plusDays(Integer.parseInt(deleteByUserBeforeStartMinusDay)).isAfter(excursion.getStart())) {
-            throw new ServiceException( TICKET_SERVICE_EXCEPTION_EXCURSION_STARTED);
+            throw new ServiceException(TICKET_SERVICE_EXCEPTION_EXCURSION_STARTED);
         }
 
         if(ticketRepository.updateTicketStatus(id, TicketState.DROP_BY_USER, TicketState.ACTIVE) == 0) {
@@ -177,13 +177,18 @@ public class TicketServiceImpl implements TicketService {
 
         for(Ticket t: tickets) {
             try {
-                userService.coinsUpByExcursion(t.getUserId(), t.getCoinsCost());
+                deleteNotActiveTicketBackCoins(t);
                 log.error(TICKET_SERVICE_LOG_BACK_COINS, t.getCoinsCost(), t.getUserId());
-                ticketRepository.delete(t);
-            } catch (ServiceException e) {
+            } catch (Exception e) {
                 log.error(TICKET_SERVICE_LOG_ERROR_BACK_COINS, t.getCoinsCost(), t.getUserId());
             }
         }
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public void deleteNotActiveTicketBackCoins(Ticket t) {
+        ticketRepository.delete(t);
+        userService.coinsUpByExcursion(t.getUserId(), t.getCoinsCost());
     }
 
     private void deleteNotActiveTicketsNoBackCoins() {
@@ -196,7 +201,7 @@ public class TicketServiceImpl implements TicketService {
         }
     }
 
-    public Ticket saveUtil(Long userId, Long excursionId, Long expectedCoinsCost) {
+    private Ticket saveUtil(Long userId, Long excursionId, Long expectedCoinsCost) {
         Excursion excursion = excursionService.findById(excursionId);
 
         checkExcursionForStart(excursion);

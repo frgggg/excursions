@@ -74,7 +74,7 @@ public class ExcursionServiceImpl implements ExcursionService {
         log.info(EXCURSION_SERVICE_LOG_SET_NOT_ENABLE_NEW_TICKETS, excursionForUpdate);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @Override
     public void deleteEndedExcursions() {
         List<Excursion> endedExcursions = excursionRepository.findByStopBefore(
