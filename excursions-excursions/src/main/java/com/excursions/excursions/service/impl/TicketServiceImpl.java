@@ -39,6 +39,8 @@ public class TicketServiceImpl implements TicketService {
     private ExcursionService excursionService;
     private UserService userService;
 
+    private TicketServiceImpl self = null;
+
     @Autowired
     protected TicketServiceImpl(TicketRepository ticketRepository, UserService userService) {
         this.ticketRepository = ticketRepository;
@@ -177,7 +179,7 @@ public class TicketServiceImpl implements TicketService {
 
         for(Ticket t: tickets) {
             try {
-                deleteNotActiveTicketBackCoins(t);
+                self.deleteNotActiveTicketBackCoins(t);
                 log.error(TICKET_SERVICE_LOG_BACK_COINS, t.getCoinsCost(), t.getUserId());
             } catch (Exception e) {
                 log.error(TICKET_SERVICE_LOG_ERROR_BACK_COINS, t.getCoinsCost(), t.getUserId());
@@ -222,6 +224,12 @@ public class TicketServiceImpl implements TicketService {
         Ticket savedTicket = ticketRepository.save(ticketForSave);
         userService.coinsDownByExcursion(userId, expectedCoinsCost);
         return savedTicket;
+    }
+
+    public void setSelf(TicketServiceImpl ticketService) {
+        if(this.self != null){
+        this.self = ticketService;
+        }
     }
 
     public void setExcursionService(ExcursionService excursionService) {
