@@ -13,13 +13,10 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.validation.ConstraintViolationException;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -39,14 +36,17 @@ public class PlaceServiceImpl implements PlaceService {
 
     @Lazy
     @Autowired
-    protected PlaceServiceImpl(PlaceRepository placeRepository, PlaceServiceImpl self) {
+    protected PlaceServiceImpl(
+            PlaceRepository placeRepository,
+            PlaceServiceImpl self
+    ) {
         this.placeRepository = placeRepository;
         this.self = self;
     }
 
     @Caching(
-            put= { @CachePut(value= PLACE_CACHE_NAME, key= "#result.id") },
-            evict= { @CacheEvict(value= PLACES_CACHE_NAME, allEntries= true) }
+            put= { @CachePut(value = PLACE_CACHE_NAME, key= "#result.id") },
+            evict= { @CacheEvict(value = PLACES_CACHE_NAME, allEntries= true) }
     )
     @Override
     public Place create(String name, String address, String info) {
@@ -71,11 +71,11 @@ public class PlaceServiceImpl implements PlaceService {
     @Cacheable(value = PLACE_CACHE_NAME, key = "#id")
     @Override
     public Place findById(Long id) {
-        Optional<Place> optionalPlace = placeRepository.findById(id);
-        optionalPlace.orElseThrow(() -> new ServiceException(String.format(PLACE_SERVICE_EXCEPTION_NOT_EXIST_PLACE, id)));
-
-        log.debug(PLACE_SERVICE_LOG_GET_PLACE, optionalPlace.get());
-        return optionalPlace.get();
+        log.debug(PLACE_SERVICE_LOG_GET_PLACE, id);
+        return placeRepository.findById(id)
+                .orElseThrow(
+                        () -> new ServiceException(String.format(PLACE_SERVICE_EXCEPTION_NOT_EXIST_PLACE, id))
+                );
     }
 
     @Cacheable(value= PLACES_CACHE_NAME, unless= "#result.size() == 0")
@@ -86,6 +86,7 @@ public class PlaceServiceImpl implements PlaceService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     @Caching(
             evict= {
                     @CacheEvict(value= PLACE_CACHE_NAME, key= "#id"),
@@ -95,7 +96,7 @@ public class PlaceServiceImpl implements PlaceService {
     @Override
     public void deleteById(Long id) {
         Place placeForDelete = self.findById(id);
-        placeRepository.delete(placeForDelete);
+        placeRepository.deleteById(id);
 
         log.debug(PLACE_SERVICE_LOG_DELETE_PLACE, placeForDelete);
     }
@@ -129,13 +130,13 @@ public class PlaceServiceImpl implements PlaceService {
     }
 
     private Place saveOrUpdateUtil(Long id, String name, String address, String info) {
-        Place savedPlace;
+        Place placeForSave = new Place(name, address, info);
+        if(id != null) {
+            placeForSave.setId(id);
+        }
+
         try {
-            Place placeForSave = new Place(name, address, info);
-            if(id != null) {
-                placeForSave.setId(id);
-            }
-            savedPlace = placeRepository.save(placeForSave);
+            return placeRepository.save(placeForSave);
         } catch (ConstraintViolationException e) {
             throw new ServiceException(e.getConstraintViolations().iterator().next().getMessage());
         } catch (DataIntegrityViolationException e) {
@@ -143,6 +144,5 @@ public class PlaceServiceImpl implements PlaceService {
         } catch (Exception e) {
             throw new ServiceException(e.getMessage());
         }
-        return savedPlace;
     }
 }
