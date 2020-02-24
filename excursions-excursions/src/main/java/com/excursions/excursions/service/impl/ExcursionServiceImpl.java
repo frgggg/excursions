@@ -115,7 +115,7 @@ public class ExcursionServiceImpl implements ExcursionService {
         Optional<Excursion> optionalExcursion = excursionRepository.findById(id);
         optionalExcursion.orElseThrow(() -> new ServiceException(String.format(EXCURSION_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION, id)));
 
-        log.info(EXCURSION_SERVICE_LOG_FIND_EXCURSION, optionalExcursion.get());
+        log.info(EXCURSION_SERVICE_LOG_FIND_EXCURSION, id);
         return optionalExcursion.get();
     }
 

@@ -64,7 +64,7 @@ public class ExcursionRest {
     @GetMapping(value = "/{id}")
     public ExcursionDto get(@PathVariable("id") Long id) {
         Excursion excursion = excursionService.findById(id);
-        log.info(EXCURSION_CONTROLLER_LOG_FIND_EXCURSION, excursion);
+        log.info(EXCURSION_CONTROLLER_LOG_FIND_EXCURSION, id);
         return modelMapper.map(excursion, ExcursionDto.class);
     }
 
