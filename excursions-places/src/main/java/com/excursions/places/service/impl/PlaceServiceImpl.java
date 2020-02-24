@@ -71,11 +71,12 @@ public class PlaceServiceImpl implements PlaceService {
     @Cacheable(value = PLACE_CACHE_NAME, key = "#id")
     @Override
     public Place findById(Long id) {
-        log.debug(PLACE_SERVICE_LOG_GET_PLACE, id);
-        return placeRepository.findById(id)
+        Place place = placeRepository.findById(id)
                 .orElseThrow(
                         () -> new ServiceException(String.format(PLACE_SERVICE_EXCEPTION_NOT_EXIST_PLACE, id))
                 );
+        log.debug(PLACE_SERVICE_LOG_GET_PLACE, place);
+        return place;
     }
 
     @Cacheable(value= PLACES_CACHE_NAME, unless= "#result.size() == 0")

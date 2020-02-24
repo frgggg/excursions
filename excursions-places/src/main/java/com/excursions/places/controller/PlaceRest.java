@@ -50,7 +50,7 @@ public class PlaceRest {
     public PlaceDto findById(@PathVariable("id") Long id) {
         Place place = placeService.findById(id);
         PlaceDto fundedPlace =  modelMapper.map(place, PlaceDto.class);
-        log.debug(PLACE_CONTROLLER_LOG_GET_PLACE, id);
+        log.debug(PLACE_CONTROLLER_LOG_GET_PLACE, fundedPlace);
         return fundedPlace;
     }
 
