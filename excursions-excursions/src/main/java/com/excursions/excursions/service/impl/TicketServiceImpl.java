@@ -44,6 +44,11 @@ public class TicketServiceImpl implements TicketService {
     private UserService userService;
     private PlatformTransactionManager transactionManager;
 
+    private static ArrayList<TicketState> ticketStatesNoBackCoins;
+    static {
+        ticketStatesNoBackCoins.add(TicketState.ACTIVE);
+        ticketStatesNoBackCoins.add(TicketState.DROP_BY_ENDED_EXCURSION);
+    }
 
     @Autowired
     protected TicketServiceImpl(
@@ -127,8 +132,17 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public void deleteNotActiveTickets() {
-        deleteNotActiveTicketsNoBackCoins();
-        deleteNotActiveTicketsBackCoins();
+        try {
+            deleteNotActiveTicketsNoBackCoins();
+        } catch (Exception e) {
+            log.error("deleteNotActiveTicketsNoBackCoins: " + e.getMessage());
+        }
+
+        try {
+            deleteNotActiveTicketsBackCoins();
+        } catch (Exception e) {
+            log.error("deleteNotActiveTicketsBackCoins: " + e.getMessage());
+        }
         log.info(TICKET_SERVICE_LOG_DELETE_NOT_ACTIVE_TICKETS);
     }
 
@@ -183,10 +197,6 @@ public class TicketServiceImpl implements TicketService {
     }
 
     private void deleteNotActiveTicketsBackCoins() {
-        ArrayList<TicketState> ticketStatesNoBackCoins = new ArrayList<>();
-        ticketStatesNoBackCoins.add(TicketState.ACTIVE);
-        ticketStatesNoBackCoins.add(TicketState.DROP_BY_ENDED_EXCURSION);
-
         List<Ticket> tickets = ticketRepository.findByStateNotIn(ticketStatesNoBackCoins);
 
         for(Ticket t: tickets) {
