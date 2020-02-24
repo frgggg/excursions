@@ -13,17 +13,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.validation.ConstraintViolationException;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -42,13 +41,13 @@ public class TicketServiceImpl implements TicketService {
     private TicketRepository ticketRepository;
     private ExcursionService excursionService;
     private UserService userService;
-    private PlatformTransactionManager transactionManager;
+    private TransactionTemplate template;
 
-    private static ArrayList<TicketState> ticketStatesNoBackCoins;
-    static {
-        ticketStatesNoBackCoins.add(TicketState.ACTIVE);
-        ticketStatesNoBackCoins.add(TicketState.DROP_BY_ENDED_EXCURSION);
-    }
+    private static List<TicketState> ticketStatesNoBackCoins = List.of
+            (
+                    TicketState.ACTIVE,
+                    TicketState.DROP_BY_ENDED_EXCURSION
+            );
 
     @Autowired
     protected TicketServiceImpl(
@@ -58,7 +57,8 @@ public class TicketServiceImpl implements TicketService {
     ) {
         this.ticketRepository = ticketRepository;
         this.userService = userService;
-        this.transactionManager = transactionManager;
+        this.template = new TransactionTemplate(transactionManager);
+        template.setIsolationLevel(TransactionDefinition.ISOLATION_SERIALIZABLE);
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
@@ -172,19 +172,26 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public void setActiveTicketsAsDropByWrongExcursions(List<Excursion> wrongExcursions) {
-        List<Long> wrongExcursionsIds = null;
-        if(isListNotNullNotEmpty(wrongExcursions)) {
-            wrongExcursionsIds = wrongExcursions.stream().map(Excursion::getId).collect(Collectors.toList());
-            List<Ticket> tickets = ticketRepository.findByExcursionIdInAndState(wrongExcursionsIds, TicketState.ACTIVE);
-            if(isListNotNullNotEmpty(tickets)) {
-                List<Long> ticketsIds = tickets.stream().map(Ticket::getId).collect(Collectors.toList());
-                ticketRepository.updateTicketsStatus(
-                        ticketsIds,
-                        TicketState.DROP_BY_WRONG_EXCURSION,
-                        TicketState.ACTIVE
-                );
-            }
+        if(!isListNotNullNotEmpty(wrongExcursions)) {
+            return;
         }
+        List<Long> wrongExcursionsIds = wrongExcursions.stream().map(Excursion::getId)
+                .collect(Collectors.toList());
+        List<Ticket> tickets = ticketRepository.findByExcursionIdInAndState(
+                wrongExcursionsIds,
+                TicketState.ACTIVE
+        );
+        if(!isListNotNullNotEmpty(tickets)) {
+            return;
+        }
+
+        List<Long> ticketsIds = tickets.stream().map(Ticket::getId)
+                .collect(Collectors.toList());
+        ticketRepository.updateTicketsStatus(
+                ticketsIds,
+                TicketState.DROP_BY_WRONG_EXCURSION,
+                TicketState.ACTIVE
+        );
 
         log.info(TICKET_SERVICE_LOG_TICKET_DROP_BY_WRONG_EXCURSIONS, wrongExcursionsIds);
     }
@@ -210,7 +217,6 @@ public class TicketServiceImpl implements TicketService {
     }
     
     public void deleteNotActiveTicketBackCoins(Ticket t) {
-        TransactionTemplate template = new TransactionTemplate(transactionManager);
         template.execute(
                 new TransactionCallbackWithoutResult() {
                     @Override
