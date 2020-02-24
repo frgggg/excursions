@@ -99,9 +99,8 @@ public class TicketRest {
     @GetMapping(value = "/{id}")
     public TicketDto findById(@PathVariable("id") Long id) {
         Ticket ticket = ticketService.findById(id);
-        TicketDto ticketDto =  modelMapper.map(ticket, TicketDto.class);
-        log.info(TICKET_CONTROLLER_LOG_FIND_EXCURSION, id);
-        return ticketDto;
+        log.info(TICKET_CONTROLLER_LOG_FIND_EXCURSION, ticket);
+        return modelMapper.map(ticket, TicketDto.class);
     }
 
     @DeleteMapping(value = "/{id}/by-user")

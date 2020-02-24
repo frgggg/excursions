@@ -3,7 +3,7 @@ package com.excursions.excursions.log.message;
 public class TicketServiceLogMessages {
     public static final String TICKET_SERVICE_LOG_NEW_TICKET = "New ticket: {}";
 
-    public static final String TICKET_SERVICE_LOG_FIND_EXCURSION = "find ticket with id {}";
+    public static final String TICKET_SERVICE_LOG_FIND_EXCURSION = "find ticket {}";
 
     public static final String TICKET_SERVICE_LOG_FIND_ALL = "find all tickets";
 

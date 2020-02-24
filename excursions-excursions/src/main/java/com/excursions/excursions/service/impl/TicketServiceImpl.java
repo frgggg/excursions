@@ -74,10 +74,13 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public Ticket findById(Long id) {
-        Optional<Ticket> optionalTicket = ticketRepository.findById(id);
-        optionalTicket.orElseThrow(() -> new ServiceException(String.format(TICKET_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION, id)));
-        log.info(TICKET_SERVICE_LOG_FIND_EXCURSION, optionalTicket.get());
-        return optionalTicket.get();
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new ServiceException(
+                        String.format(TICKET_SERVICE_EXCEPTION_NOT_EXIST_EXCURSION, id)
+                        )
+                );
+        log.info(TICKET_SERVICE_LOG_FIND_EXCURSION, ticket);
+        return ticket;
     }
 
     @Override
