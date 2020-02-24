@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.validation.ConstraintViolationException;
@@ -180,7 +181,7 @@ public class TicketServiceImpl implements TicketService {
         for(Ticket t: tickets) {
             try {
                 self.deleteNotActiveTicketBackCoins(t);
-                log.error(TICKET_SERVICE_LOG_BACK_COINS, t.getCoinsCost(), t.getUserId());
+                log.info(TICKET_SERVICE_LOG_BACK_COINS, t.getCoinsCost(), t.getUserId());
             } catch (Exception e) {
                 log.error(TICKET_SERVICE_LOG_ERROR_BACK_COINS, t.getCoinsCost(), t.getUserId());
             }
@@ -227,7 +228,7 @@ public class TicketServiceImpl implements TicketService {
     }
 
     public void setSelf(TicketServiceImpl ticketService) {
-        if(this.self != null){
+        if(this.self == null){
         this.self = ticketService;
         }
     }
