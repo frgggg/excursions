@@ -12,16 +12,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionCallbackWithoutResult;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.validation.ConstraintViolationException;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -39,13 +42,18 @@ public class TicketServiceImpl implements TicketService {
     private TicketRepository ticketRepository;
     private ExcursionService excursionService;
     private UserService userService;
+    private PlatformTransactionManager transactionManager;
 
-    private TicketServiceImpl self = null;
 
     @Autowired
-    protected TicketServiceImpl(TicketRepository ticketRepository, UserService userService) {
+    protected TicketServiceImpl(
+            TicketRepository ticketRepository,
+            UserService userService,
+            PlatformTransactionManager transactionManager
+    ) {
         this.ticketRepository = ticketRepository;
         this.userService = userService;
+        this.transactionManager = transactionManager;
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
@@ -183,18 +191,25 @@ public class TicketServiceImpl implements TicketService {
 
         for(Ticket t: tickets) {
             try {
-                self.deleteNotActiveTicketBackCoins(t);
+                deleteNotActiveTicketBackCoins(t);
                 log.info(TICKET_SERVICE_LOG_BACK_COINS, t.getCoinsCost(), t.getUserId());
             } catch (Exception e) {
                 log.error(TICKET_SERVICE_LOG_ERROR_BACK_COINS, t.getCoinsCost(), t.getUserId());
             }
         }
     }
-
-    @Transactional(isolation = Isolation.SERIALIZABLE)
+    
     public void deleteNotActiveTicketBackCoins(Ticket t) {
-        ticketRepository.delete(t);
-        userService.coinsUpByExcursion(t.getUserId(), t.getCoinsCost());
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.execute(
+                new TransactionCallbackWithoutResult() {
+                    @Override
+                    protected void doInTransactionWithoutResult(TransactionStatus status) {
+                            ticketRepository.delete(t);
+                            userService.coinsUpByExcursion(t.getUserId(), t.getCoinsCost());
+                    }
+                }
+        );
     }
 
     private void deleteNotActiveTicketsNoBackCoins() {
@@ -228,12 +243,6 @@ public class TicketServiceImpl implements TicketService {
         Ticket savedTicket = ticketRepository.save(ticketForSave);
         userService.coinsDownByExcursion(userId, expectedCoinsCost);
         return savedTicket;
-    }
-
-    public void setSelf(TicketServiceImpl ticketService) {
-        if(this.self == null){
-        this.self = ticketService;
-        }
     }
 
     public void setExcursionService(ExcursionService excursionService) {

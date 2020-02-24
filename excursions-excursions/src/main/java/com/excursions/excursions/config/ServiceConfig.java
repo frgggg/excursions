@@ -11,7 +11,6 @@ public class ServiceConfig {
     @Autowired
     protected ServiceConfig(TicketServiceImpl ticketServiceImpl, ExcursionServiceImpl excursionServiceImpl) {
         ticketServiceImpl.setExcursionService(excursionServiceImpl);
-        ticketServiceImpl.setSelf(ticketServiceImpl);
         excursionServiceImpl.setTicketService(ticketServiceImpl);
     }
 }
